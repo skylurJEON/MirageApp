@@ -169,29 +169,37 @@ function SpeedCameraScreen(): JSX.Element {
       return (REAL_HEIGHT * focalLength) / pixelHeight;
     };
 
-    const calculateSpeed = (prevDistance: number, currentDistance: number, timeDiff: number) => {
+    const calculateCenter = (x: number, y: number, w: number, h: number) => {
+      'worklet';
+      return { cx: x + w / 2, cy: y + h / 2 };
+    };
+
+    const calculateRealMovement = (prevCenter: { cx: number; cy: number }, currentCenter: { cx: number; cy: number }) => {
+      'worklet';
+      const dx = currentCenter.cx - prevCenter.cx;
+      const dy = currentCenter.cy - prevCenter.cy;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const calculateSpeed = (prevDistance: number, currentDistance: number, movement: number, timeDiff: number) => {
       'worklet';
       const distanceDiff = Math.abs(currentDistance - prevDistance);
       const timeInSeconds = timeDiff / 1000;
-      
-      // 시간 차이가 너무 작거나 큰 경우 무시
-      if (timeInSeconds < 0.016 || timeInSeconds > 1.0) {  // 60fps 기준
+
+      if (timeInSeconds < 0.016 || timeInSeconds > 1.0) {
         return 0;
       }
-      
-      const speedMPS = distanceDiff / timeInSeconds;
+
+      const speedMPS = (distanceDiff + movement) / timeInSeconds;
       const speedKPH = speedMPS * 3.6;
-      
-      // 축구 선수의 현실적인 속도 범위로 제한 (약 0-40km/h)
+
       if (speedKPH > 40 || speedKPH < 0) {
         return 0;
       }
-      
-      // 급격한 속도 변화 방지
-      return Math.round(speedKPH * 10) / 10;  // 소수점 첫째자리까지만 표시
+
+      return Math.round(speedKPH * 10) / 10;
     };
 
-    // 프레임 처리 주기 증가 (30fps -> 60fps)
     runAtTargetFps(60, () => {
       const resized = resize(frame, {
         scale: {
@@ -229,54 +237,47 @@ function SpeedCameraScreen(): JSX.Element {
           const wm = (h - y) * frame.width;
           const hm = (w - x) * frame.height;
 
-          // 실제 거리 계산
+          const currentCenter = calculateCenter(xm, ym, wm, hm);
           const currentDistance = calculateRealDistance(hm);
           let speed = 0;
 
           const prevPosition = previousPositions.value[objectId];
-          
+
           if (prevPosition) {
-            // 위치가 너무 급격하게 변하는 경우 무시
-            const positionDiff = Math.abs(hm - prevPosition.height);
-            if (positionDiff < frame.height * 0.5) {  // 화면 높이의 50% 이상 차이나면 무시
-              const prevDistance = calculateRealDistance(prevPosition.height);
-              const timeDiff = currentTimestamp - prevPosition.timestamp;
-              speed = calculateSpeed(prevDistance, currentDistance, timeDiff);
-            }
+            const prevCenter = calculateCenter(prevPosition.x, prevPosition.y, prevPosition.height, prevPosition.height);
+            const movement = calculateRealMovement(prevCenter, currentCenter);
+            const prevDistance = calculateRealDistance(prevPosition.height);
+            const timeDiff = currentTimestamp - prevPosition.timestamp;
+            speed = calculateSpeed(prevDistance, currentDistance, movement, timeDiff);
           }
 
-          // 현재 위치와 높이 저장
           previousPositions.value = {
             ...previousPositions.value,
             [objectId]: {
               x: xm,
               y: ym,
-              height: hm,  // 픽셀 높이도 저장
+              height: hm,
               timestamp: currentTimestamp
             }
           };
 
-          // 바운딩 박스 그리기
           const rect = Skia.XYWHRect(xm, ym, wm, hm);
           frame.drawRect(rect, boxPaint);
 
-          // 속도 텍스트 그리기
-            const speedText = `${speed.toFixed(1)} km/h`;
-            const textX = xm;
-            const textY = ym - 10;
+          const speedText = `${speed.toFixed(1)} km/h`;
+          const textX = xm;
+          const textY = ym - 10;
 
-            // 텍스트 배경을 위한 사각형 그리기
-            const textBounds = speedFont.getTextWidth(speedText);
-            const padding = 5;
-            const bgRect = Skia.XYWHRect(
-              textX - padding,
-              textY - speedFont.getSize(),
-              textBounds + 20,
-              speedFont.getSize() + 20
-            );
-            frame.drawRect(bgRect, bgPaint);
-            frame.drawText(speedText, textX, textY, textPaint, speedFont);
-          
+          const textBounds = speedFont.getTextWidth(speedText);
+          const padding = 5;
+          const bgRect = Skia.XYWHRect(
+            textX - padding,
+            textY - speedFont.getSize(),
+            textBounds + 20,
+            speedFont.getSize() + 20
+          );
+          frame.drawRect(bgRect, bgPaint);
+          frame.drawText(speedText, textX, textY, textPaint, speedFont);
 
           detectedPeople.push({
             xm,
