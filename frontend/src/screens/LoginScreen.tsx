@@ -32,7 +32,7 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://192.168.35.184:3000/auth/login', {
+      const response = await fetch('YOUR_IP_ADDRESS/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
