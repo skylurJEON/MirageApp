@@ -33,7 +33,7 @@ const SignUpScreen = () => {
     }
 
     try {
-      const response = await fetch('http://192.168.35.184:3000/auth/signup', {
+      const response = await fetch('YOUR_API_ADRESS/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
