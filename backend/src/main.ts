@@ -11,7 +11,7 @@ async function bootstrap() {
   }));
   
   app.enableCors({
-    origin: 'http://192.168.35.146:19006', // 디바이스에서 접근할 수 있는 IP 주소
+    origin: 'YOUR_IP_ADDRESS', // 디바이스에서 접근할 수 있는 IP 주소
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
