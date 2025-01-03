@@ -31,9 +31,8 @@ const TestScreen = () => {
   const [hasMore, setHasMore] = useState(true);
   const [matchError, setMatchError] = useState<string | null>(null);
 
-  const API_URL = 'http://192.168.35.184:3000';
+  const API_URL = 'YOUR_IP_ADDRESS';
 
-  //const API_URL = 'http://192.0.0.2:3000';
   
   const fetchLeagues = async () => {
     try {
